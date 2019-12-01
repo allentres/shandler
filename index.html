@@ -197,6 +197,7 @@
 		}
 
 		window.onload = () => {
+			let log = document.getElementById("log")
 			let viewer = ace.edit("viewer")
 			viewer.setTheme("ace/theme/monokai")
 			viewer.setReadOnly(true)
@@ -216,29 +217,25 @@
 			let wsInput = document.getElementById("wsHostInput")
 			wsInput.setAttribute('placeholder', window.wsHost)
 			wsInput.value = window.wsHost
-			wsInput.addEventListener("keyup", e => {
+			wsInput.onkeyup = e => {
 				if (e.key === `Enter`) {
 					window.wsHost = e.target.value
 					Cookies.set('shandler_ws_host', window.wsHost, {expires: 1024})
 					window.wsConnect()
 				}
-			})
-			document.onkeydown = e => {
-				console.log(`key`, e)
-				let log = document.getElementById("log")
-				if (!window.currentLine) {
-					window.currentLine = log.children[0]
-				}
-				if (e.key === `ArrowDown`) {
-					let next = window.currentLine.nextElementSibling
-					if (next && next.className === `line`) {
-						selectLine(next)
-					}
-				} else if (e.key === `ArrowUp`) {
-					let prev = window.currentLine.previousElementSibling
-					if (prev && prev.className === `line`) {
-						selectLine(prev)
-					}
+			}
+
+			function aceOnKeyDown(e) {
+				if (e.ctrlKey && e.key === `1`) {
+					viewer.focus()
+				} else if (e.ctrlKey && e.key === `2`) {
+					editor.blur()
+					viewer.blur()
+					log.focus()
+					ensureLineSelected()
+					window.currentLine.focus()
+				} else if (e.ctrlKey && e.key === `3`) {
+					editor.focus()
 				} else if (e.key === `Escape`) {
 					selectLine(undefined)
 				} else if (e.metaKey && e.key === `Enter`) {
@@ -246,6 +243,42 @@
 					window.send(msg)
 				}
 			}
+
+			document.body.onkeydown = e => {
+				// if we aren't in an ace editor
+				if (document.activeElement.tagName === `BODY`) {
+					aceOnKeyDown(e)
+					if (e.key === `ArrowDown`) {
+						ensureLineSelected()
+						let next = window.currentLine.nextElementSibling
+						if (next && next.className === `line`) {
+							selectLine(next)
+						}
+					} else if (e.key === `ArrowUp`) {
+						ensureLineSelected()
+						let prev = window.currentLine.previousElementSibling
+						if (prev && prev.className === `line`) {
+							selectLine(prev)
+						}
+					} else if (e.metaKey && e.key === `Enter`) {
+						let msg = editor.getValue()
+						window.send(msg)
+					}
+				}
+			}
+			/*
+			editor.commands.addCommand({
+				name: `Focus on Viewer`,
+				exec: () => viewer.focus(),
+				bindKey: {
+					mac: `ctrl-1`,
+					win: `ctrl-1`,
+				}
+			})
+			 */
+
+			viewer.textInput.getElement().onkeydown = aceOnKeyDown
+			editor.textInput.getElement().onkeydown = aceOnKeyDown
 
 			window.send = data => {
 				if (typeof data === `string`) {
@@ -261,6 +294,18 @@
 			}
 			window.clear = () => document.getElementById("log").innerHTML = `<div></div>`
 			window.wsConnect()
+			editor.focus()
+		}
+
+		function ensureLineSelected() {
+			let lines = document.getElementsByClassName(`line`)
+			for (let l of lines) {
+				l.removeAttribute(`selected`)
+			}
+			if (!window.currentLine) {
+				window.currentLine = log.children[0]
+			}
+			window.currentLine.setAttribute(`selected`, `yes`)
 		}
 
 		function addLine(message, direction) {
