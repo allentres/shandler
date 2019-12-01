@@ -89,7 +89,7 @@
 			background-color: transparent;
 			outline: none;
 			border: none;
-			padding-left:1vw;
+			padding-left: 1vw;
 			font-family: "Fira Code", "Menlo", "Consolas", monospace;
 		}
 
@@ -164,13 +164,12 @@
 				// start a heartbeat
 				if (window.heartbeat) window.clearInterval(window.heartbeat)
 				window.heartbeat = window.setInterval(() => {
-					try {
-						window.ws.send(JSON.stringify({re: `ping`}))
-					} catch (e) {
-					}
-				}, 25000
-			)
-				window.handleMessage({re: `connected`})
+						try {
+							window.ws.send(JSON.stringify({re: `ping`}))
+						} catch (e) {
+						}
+					}, 25000
+				)
 			}
 			ws.onclose = () => {
 				wsInput.removeAttribute(`status`)
@@ -188,8 +187,11 @@
 		}
 
 		window.handleMessage = msg => {
-			if (msg.re === `pong`) return
-			if (msg.re === `connected`) return
+			try {
+				let reMsg = JSON.parse(msg)
+				if (reMsg.re === `pong`) return
+			} catch (e) {
+			}
 			addLine(msg, `incoming`)
 			if (window.currentLine === undefined) showMessage(msg)
 		}
@@ -216,13 +218,13 @@
 			wsInput.value = window.wsHost
 			wsInput.addEventListener("keyup", e => {
 				if (e.key === `Enter`) {
-				window.wsHost = e.target.value
-				Cookies.set('shandler_ws_host', window.wsHost, {expires: 1024})
-				window.wsConnect()
-			}
-		})
+					window.wsHost = e.target.value
+					Cookies.set('shandler_ws_host', window.wsHost, {expires: 1024})
+					window.wsConnect()
+				}
+			})
 			document.onkeydown = e => {
-				console.log(`key`,e)
+				console.log(`key`, e)
 				let log = document.getElementById("log")
 				if (!window.currentLine) {
 					window.currentLine = log.children[0]
