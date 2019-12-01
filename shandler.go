@@ -123,15 +123,16 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 				client.Handle(data)
 			} else {
 				// if this is a ping, pong it
-				jsonMessage := jsonMessage.(map[string]interface{})
-				if re, exists := jsonMessage["re"]; exists && re == "ping" {
-					pong, _ := json.Marshal(map[string]interface{}{
-						"re": "pong",
-					})
-					_ = c.Write(ctx, websocket.MessageText, pong)
-				} else {
-					client.HandleJson(jsonMessage)
+				if jsonMessage, ok := jsonMessage.(map[string]interface{}); ok {
+					if re, exists := jsonMessage["re"]; exists && re == "ping" {
+						pong, _ := json.Marshal(map[string]interface{}{
+							"re": "pong",
+						})
+						_ = c.Write(ctx, websocket.MessageText, pong)
+					}
+					continue
 				}
+				client.HandleJson(jsonMessage)
 			}
 		}
 	}
