@@ -1,6 +1,7 @@
 package shandler
 
 import (
+	"encoding/json"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
@@ -25,8 +26,10 @@ type ClientHandler interface {
 	Connected()
 	Disconnected()
 	Handle(data []byte)
+	HandleJson(message interface{})
 	HandleBinary(data []byte)
 	Write(data []byte)
+	WriteJson(message interface{})
 	WriteBinary(data []byte)
 }
 
@@ -115,7 +118,21 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		if typ == websocket.MessageBinary {
 			client.HandleBinary(data)
 		} else {
-			client.Handle(data)
+			var jsonMessage interface{}
+			if json.Unmarshal(data, &jsonMessage) != nil {
+				client.Handle(data)
+			} else {
+				// if this is a ping, pong it
+				jsonMessage := jsonMessage.(map[string]interface{})
+				if re, exists := jsonMessage["re"]; exists && re == "ping" {
+					pong, _ := json.Marshal(map[string]interface{}{
+						"re": "pong",
+					})
+					_ = c.Write(ctx, websocket.MessageText, pong)
+				} else {
+					client.HandleJson(jsonMessage)
+				}
+			}
 		}
 	}
 	h.disconnect <- client

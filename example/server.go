@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/allentres/shandler"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -79,6 +80,16 @@ func (c *Client) Write(data []byte) {
 	}
 }
 
+func (c *Client) WriteJson(message interface{}) {
+	c.Handler.Log.Debug("write json", zap.Any("message", message))
+	data, err := json.Marshal(message)
+	if err != nil {
+		c.Handler.Log.Error("failed to marshal json message", zap.Error(err))
+		return
+	}
+	c.WriteBinary(data)
+}
+
 func (c *Client) WriteBinary(data []byte) {
 	c.Handler.Log.Debug("write binary", zap.ByteString("data", data))
 	err := c.Socket.Write(c.Request.Context(), websocket.MessageBinary, data)
@@ -90,6 +101,10 @@ func (c *Client) WriteBinary(data []byte) {
 func (c *Client) Handle(data []byte) {
 	c.Handler.Log.Debug("handle", zap.ByteString("data", data))
 	c.Handler.Broadcast(c, websocket.MessageText, data)
+}
+
+func (c *Client) HandleJson(message interface{}) {
+	c.Handler.Log.Debug("handle json", zap.Any("message", message))
 }
 
 func (c *Client) HandleBinary(data []byte) {
