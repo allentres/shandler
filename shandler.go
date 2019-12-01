@@ -142,3 +142,12 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Broadcast(from ClientHandler, messageType websocket.MessageType, data []byte) {
 	h.broadcast <- broadcastMessage{from, messageType, data}
 }
+
+func (h *Handler) BroadcastJson(from ClientHandler, message interface{}) {
+	data, err := json.Marshal(message)
+	if err != nil {
+		h.Log.Error("failed to marshal broadcast json message", zap.Error(err))
+		return
+	}
+	h.Broadcast(from, websocket.MessageText, data)
+}

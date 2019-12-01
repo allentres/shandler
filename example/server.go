@@ -87,7 +87,7 @@ func (c *Client) WriteJson(message interface{}) {
 		c.Handler.Log.Error("failed to marshal json message", zap.Error(err))
 		return
 	}
-	c.WriteBinary(data)
+	c.Write(data)
 }
 
 func (c *Client) WriteBinary(data []byte) {
