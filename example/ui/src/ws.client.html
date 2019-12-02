@@ -211,7 +211,7 @@
 
 			window.wsHost = Cookies.get('shandler_ws_host')
 			if (!window.wsHost) {
-				window.wsHost = window.location.href.replace('http', 'ws') + 'ws'
+				window.wsHost = window.location.origin.replace('http', 'ws') + '/ws'
 				Cookies.set('shandler_ws_host', window.wsHost, {expires: 1024})
 			}
 			let wsInput = document.getElementById("wsHostInput")
