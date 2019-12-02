@@ -129,8 +129,8 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 							"re": "pong",
 						})
 						_ = c.Write(ctx, websocket.MessageText, pong)
+						continue
 					}
-					continue
 				}
 				client.HandleJson(jsonMessage)
 			}
