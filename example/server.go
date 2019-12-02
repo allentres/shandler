@@ -41,7 +41,7 @@ func main() {
 	wsHandler := shandler.NewHandler(logger, NewClient)
 	r.HandleFunc("/ws", wsHandler.Handle)
 	// static files handler
-	r.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.Dir("."))))
+	r.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.Dir("./ui/dist"))))
 
 	httpServer := http.Server{
 		Addr:    "0.0.0.0:8888",

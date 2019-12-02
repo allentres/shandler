@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+	<title>Shandler</title>
+	<meta charset="utf-8">
+	<link href="https://fonts.googleapis.com/css?family=Fira+Sans"
+	      rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Fira+Mono"
+	      rel="stylesheet">
+	<link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+	      rel="stylesheet">
+	<link rel="stylesheet"
+	      type="text/css"
+	      href="https://cdn.rawgit.com/ConnorAtherton/loaders.css/master/loaders.min.css">
+	<script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.6/ace.js"
+	        integrity="sha256-CVkji/u32aj2TeC+D13f7scFSIfphw2pmu4LaKWMSY8=" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.6/mode-json.js"
+	        integrity="sha256-WH3EjHkUnhbOt45gfu5MvEYSqvYUXE25FwAtxukgi9U=" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.6/theme-monokai.js"
+	        integrity="sha256-Fc4eJOe8KtF8kDLqSR94vUiJ1ohvKDxznSMxI3RavOw=" crossorigin="anonymous"></script>
+	<style>
+		* {
+			padding: 0;
+			margin: 0;
+		}
+
+		body {
+			font-family: "Fira Sans", Helvetica, serif;
+			background-color: #222;
+			color: silver;
+		}
+
+		#top {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+		}
+
+		#bottom {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			height: 15vmin;
+		}
+
+
+		#log {
+			position: fixed;
+			top: 0;
+			left: 50%;
+			bottom: 17vmin;
+			right: 0;
+			overflow: auto;
+			cursor: pointer;
+			padding-left: 0.2em;
+		}
+
+		#viewer {
+			position: fixed;
+			top: 0;
+			left: 0;
+			bottom: 17vmin;
+			right: 50%;
+		}
+
+		#toolbar {
+			position: fixed;
+			bottom: 15vmin;
+			left: 0;
+			right: 0;
+		}
+
+		#editor {
+			position: fixed;
+			height: 15vmin;
+			bottom: 0;
+			right: 0;
+			left: 0;
+		}
+
+		#wsHostInput {
+			color: deepskyblue;
+			width: 100%;
+			font-size: 1.5vmin;
+			height:2vmin;
+			background-color: transparent;
+			outline: none;
+			border: none;
+			padding-left: 1vmin;
+			font-family: "Fira Code", "Menlo", "Consolas", monospace;
+		}
+
+		#wsHostInput[status="connecting"] {
+			color: crimson;
+		}
+
+		#wsHostInput[status="connected"] {
+			color: lime;
+		}
+
+		#wsHostInput[status="error"] {
+			color: red;
+		}
+
+		#log .line {
+			font-size: 0.8vmin;
+			font-family: "Fira Code", "Menlo", "Consolas", monospace;
+			cursor: pointer;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		#log .line:hover {
+			background-color: #333;
+		}
+
+		#log .line[selected] .message {
+			color: lime;
+		}
+
+		.message {
+			white-space: nowrap;
+			font-size: 0.6rem;
+			font-family: "Fira Code", "Menlo", "Consolas", monospace;
+		}
+
+		.incoming {
+
+		}
+
+		.outgoing {
+			color: deepskyblue;
+		}
+
+	</style>
+	<script type="text/javascript"
+	        charset="utf-8"
+	        async
+	        defer>
+		let maxLogLines = 1024
+		// websocket connector function
+		window.wsConnect = () => {
+			let wsInput = document.getElementById("wsHostInput")
+			let wsHost = window.wsHost
+			if (window.ws) {
+				window.ws.close()
+				window.ws.onopen = undefined
+				window.ws.onerror = undefined
+				window.ws.onclose = undefined
+				window.ws.onmessage = undefined
+				window.ws = undefined
+			}
+			let ws = new WebSocket(wsHost)
+			console.log(`ws --> ${wsHost}`)
+			wsInput.setAttribute(`status`, `connecting`)
+			ws.onopen = () => {
+				console.info(`connected`)
+				wsInput.setAttribute(`status`, `connected`)
+				window.ws = ws
+				// start a heartbeat
+				if (window.heartbeat) window.clearInterval(window.heartbeat)
+				window.heartbeat = window.setInterval(() => {
+						try {
+							window.ws.send(JSON.stringify({re: `ping`}))
+						} catch (e) {
+						}
+					}, 25000
+				)
+			}
+			ws.onclose = () => {
+				wsInput.removeAttribute(`status`)
+				if (window.heartbeat) window.clearInterval(window.heartbeat)
+				window.setTimeout(window.wsConnect, 1000)
+			}
+
+			ws.onerror = e => {
+				console.error(`ws error`, e)
+				wsInput.setAttribute(`status`, `error`)
+			}
+			ws.onmessage = msg => window.handleMessage(msg.data)
+
+			window.ws = ws
+		}
+
+		window.handleMessage = msg => {
+			try {
+				let reMsg = JSON.parse(msg)
+				if (reMsg.re === `pong`) return
+			} catch (e) {
+			}
+			addLine(msg, `incoming`)
+			if (window.currentLine === undefined) showMessage(msg)
+		}
+
+		window.onload = () => {
+			let log = document.getElementById("log")
+			let viewer = ace.edit("viewer")
+			viewer.setTheme("ace/theme/monokai")
+			viewer.setReadOnly(true)
+			viewer.getSession().setMode("ace/mode/json")
+			viewer.$blockScrolling = Infinity
+
+			let editor = ace.edit("editor")
+			editor.setTheme("ace/theme/monokai")
+			editor.getSession().setMode("ace/mode/json")
+			editor.$blockScrolling = Infinity
+
+			window.wsHost = Cookies.get('shandler_ws_host')
+			if (!window.wsHost) {
+				window.wsHost = window.location.href.replace('http', 'ws') + 'ws'
+				Cookies.set('shandler_ws_host', window.wsHost, {expires: 1024})
+			}
+			let wsInput = document.getElementById("wsHostInput")
+			wsInput.setAttribute('placeholder', window.wsHost)
+			wsInput.value = window.wsHost
+			wsInput.onkeyup = e => {
+				if (e.key === `Enter`) {
+					window.wsHost = e.target.value
+					Cookies.set('shandler_ws_host', window.wsHost, {expires: 1024})
+					window.wsConnect()
+				}
+			}
+
+			function aceOnKeyDown(e) {
+				if (e.ctrlKey && e.key === `1`) {
+					viewer.focus()
+				} else if (e.ctrlKey && e.key === `2`) {
+					editor.blur()
+					viewer.blur()
+					log.focus()
+					ensureLineSelected()
+					window.currentLine.focus()
+				} else if (e.ctrlKey && e.key === `3`) {
+					editor.focus()
+				} else if (e.key === `Escape`) {
+					selectLine(undefined)
+				} else if (e.metaKey && e.key === `Enter`) {
+					let msg = editor.getValue()
+					window.send(msg)
+				}
+			}
+
+			document.body.onkeydown = e => {
+				// if we aren't in an ace editor
+				if (document.activeElement.tagName === `BODY`) {
+					aceOnKeyDown(e)
+					if (e.key === `ArrowDown`) {
+						ensureLineSelected()
+						let next = window.currentLine.nextElementSibling
+						if (next && next.className === `line`) {
+							selectLine(next)
+						}
+					} else if (e.key === `ArrowUp`) {
+						ensureLineSelected()
+						let prev = window.currentLine.previousElementSibling
+						if (prev && prev.className === `line`) {
+							selectLine(prev)
+						}
+					} else if (e.metaKey && e.key === `Enter`) {
+						let msg = editor.getValue()
+						window.send(msg)
+					}
+				}
+			}
+			/*
+			editor.commands.addCommand({
+				name: `Focus on Viewer`,
+				exec: () => viewer.focus(),
+				bindKey: {
+					mac: `ctrl-1`,
+					win: `ctrl-1`,
+				}
+			})
+			 */
+
+			viewer.textInput.getElement().onkeydown = aceOnKeyDown
+			editor.textInput.getElement().onkeydown = aceOnKeyDown
+
+			window.send = data => {
+				if (typeof data === `string`) {
+					data = JSON.parse(data)
+				}
+				if (typeof data === `object`) {
+					data = JSON.stringify(data)
+				}
+				window.ws.send(data) // string
+				addLine(data, `outgoing`)
+				showMessage(data)
+				return data
+			}
+			window.clear = () => document.getElementById("log").innerHTML = `<div></div>`
+			window.wsConnect()
+			editor.focus()
+		}
+
+		function ensureLineSelected() {
+			let lines = document.getElementsByClassName(`line`)
+			for (let l of lines) {
+				l.removeAttribute(`selected`)
+			}
+			if (!window.currentLine) {
+				window.currentLine = log.children[0]
+			}
+			window.currentLine.setAttribute(`selected`, `yes`)
+		}
+
+		function addLine(message, direction) {
+			let log = document.getElementById("log")
+			let line = document.createElement("div")
+			line.className = "line"
+			line.onclick = () => selectLine(line)
+			try {
+				line.message = JSON.parse(message)
+			} catch (_) {
+				line.message = message
+			}
+
+			let label = document.createElement("div")
+			label.className = `${direction} message`
+			label.innerText = message
+			line.appendChild(label)
+
+			log.insertBefore(line, log.childNodes[0])
+			while (log.childNodes.length > maxLogLines) {
+				log.removeChild(log.childNodes[log.childNodes.length - 1])
+			}
+			return line
+		}
+
+		function showMessage(message) {
+			let data = message
+			if (typeof data === `string`) {
+				data = JSON.parse(data)
+			}
+			if (typeof data === `object`) {
+				data = JSON.stringify(data, null, 2)
+			}
+			let viewer = ace.edit("viewer")
+			viewer.setValue(data)
+			viewer.clearSelection()
+		}
+
+		function selectLine(line) {
+			let lines = document.getElementsByClassName(`line`)
+			for (let l of lines) {
+				l.removeAttribute(`selected`)
+			}
+			window.currentLine = line
+			if (line !== undefined) {
+				line.setAttribute(`selected`, `yes`)
+				showMessage(line.message)
+			}
+		}
+	</script>
+</head>
+<body>
+<div id="top">
+	<div id="viewer"></div>
+	<div id="log"></div>
+</div>
+<div id="bottom">
+	<div id="toolbar">
+		<input type="text"
+		       id="wsHostInput"/>
+	</div>
+	<div id="editor"></div>
+</div>
+</body>
+</html>
