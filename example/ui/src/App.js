@@ -9,5 +9,9 @@ export default function App() {
 	} else {
 		content = <div className={`code`} onClick={() => setHidden(!hidden)}>Hot React Hooks App</div>
 	}
-	return <div className={`App`}>{content}</div>
+	return <div className={`App`}>
+		{content}
+		<br/>
+		<a href={`/ws.client.html`}>WS Client</a>
+	</div>
 }
