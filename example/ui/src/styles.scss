@@ -1,6 +1,7 @@
 // vars
 $sans: "Fira Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 $mono: "Fira Code", "Fira Mono", monospace;
+$defaultTextColor: wheat;
 
 html, body, #root, * {
 	padding: 0;
@@ -243,6 +244,7 @@ input[type=number]::-webkit-outer-spin-button {
 	right: 0;
 	font-family: $sans;
 	background-color: black;
+	color: $defaultTextColor;
 
 	.code {
 		font-family: $mono;
