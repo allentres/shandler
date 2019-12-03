@@ -1,17 +1,33 @@
-import React, {useState} from "react"
+import React, {useState, useReducer} from "react"
 import "./styles.scss"
 
-export default function App() {
-	const [hidden, setHidden] = useState(true)
-	let content
-	if (hidden) {
-		content = <button onClick={() => setHidden(!hidden)}>Click Me!</button>
-	} else {
-		content = <div className={`code`} onClick={() => setHidden(!hidden)}>Hot React Hooks App</div>
+import {useWS} from './WS'
+
+const initialState = {
+	messages: [],
+}
+const stateReducer = (state, msg) => {
+	let newState = {...state}
+	let newMessages = [...state.messages, msg]
+	if (newMessages.length > 5) {
+		newMessages = newMessages.slice(-5)
 	}
+	newState = {...newState, messages: newMessages}
+	return newState
+}
+
+export default function App() {
+	const [state, setState] = useReducer(stateReducer, initialState)
+	const [ws, wsStatus] = useWS(`ws://localhost:8080/ws`, msg => setState(msg))
+	const sendData = () => {
+		ws.sendJson({"a": "b", "c": 3})
+	}
+
 	return <div className={`App`}>
-		{content}
+		<a href={`/ws.client.html`}>WS Client {wsStatus}</a>
 		<br/>
-		<a href={`/ws.client.html`}>WS Client</a>
+		<button onClick={sendData}>Send</button>
+		<br/>
+		{state.messages.map((msg, key) => <div className={`code`} key={key}>{JSON.stringify(msg)}</div>)}
 	</div>
 }
