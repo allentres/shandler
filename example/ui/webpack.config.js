@@ -1,7 +1,7 @@
 /* global require module __dirname process */
 let path = require(`path`)
 let webpack = require(`webpack`)
-let HTTP_PORT = process.env.WEBPACK_DEV_PORT || 8888
+let HTTP_PORT = process.env.WEBPACK_SERVER_PORT || 8888
 let inProduction = (process.env.NODE_ENV === `production`)
 let rules = [
 	{
