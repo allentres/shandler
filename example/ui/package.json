@@ -26,7 +26,7 @@
 		"eslint": "^6.7.2",
 		"file-loader": "^5.0.2",
 		"loader-utils": "^1.2.3",
-		"node-sass": "^4.13.0",
+		"node-sass": "^7.0.0",
 		"react-hot-loader": "^4.12.18",
 		"rimraf": "^3.0.0",
 		"sass-loader": "^8.0.0",
